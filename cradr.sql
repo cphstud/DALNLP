@@ -1,0 +1,10 @@
+CREATE TABLE `adr` (
+  `idADR` int(11) NOT NULL AUTO_INCREMENT,
+  `Street` varchar(45) DEFAULT NULL,
+  `city` varchar(45) NOT NULL,
+  `zip` int(11) DEFAULT NULL,
+  `EMPNO` int(11) DEFAULT NULL,
+  PRIMARY KEY (`idADR`),
+  KEY `adr_fk_1_idx` (`EMPNO`),
+  CONSTRAINT `adr_fk_1` FOREIGN KEY (`EMPNO`) REFERENCES `emp` (`EMPNO`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
