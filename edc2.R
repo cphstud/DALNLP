@@ -6,7 +6,7 @@ library(mongolite)
 
 
 con <-mongo(
-  collection = "villaer",
+  collection = "vil6",
   db = "edc",
   url = "mongodb://localhost",
   verbose = TRUE
@@ -16,26 +16,27 @@ con$find(limit=5)
 
 # https://www.edc.dk/alle-boliger/dannemare/4983/klokkevangen-4/?sagsnr=49205149
 alllinks <- read_lines("out2.txt")
-tstlinks <- alllinks[5:20]
+allsagsnr1 <- read_lines("l1")
+tstlinks <- alllinks[550:2890]
 allpages <- list()
 
 edcdf <- data.frame(matrix(nrow=1,ncol=6))
 edccolnames <- c("description","price","sqmprice","area","_id","year")
 names(edcdf) <- edccolnames
 
+listofsagsnr <- list()
+cnt <- 1
 for (i in 1:length(tstlinks)) {
-  tpage <-  read_html(tstlinks[[i]])
+  skip_to_next <- FALSE
+  if (cnt%%10==0) {
+    print(c("DO ...",cnt))
+    doMongo(edcdf)
+  }
+ tryCatch({
+  xpage <-  read_html(tstlinks[[i]])
   Sys.sleep(as.integer(abs(10*rnorm(1))))
-  allpages[[i]] <- tpage
-}
-
-testallpages <- allpages
-
-for (xpage in allpages) {
-  print(class(xpage))
-}
-
-for (xpage in allpages) {
+  allpages[[i]] <- xpage
+  cnt = cnt + 1
   #print("GO")
   nfacts = xpage %>% html_nodes("div.case-facts__fact-col:nth-child(1)") %>% html_text()
   nfacts2 = xpage %>% html_nodes("div.case-facts__fact-col:nth-child(2)") %>% html_text()
@@ -48,27 +49,32 @@ for (xpage in allpages) {
   res <- grps[[1]]
   #sagsnr <- getsagsnr
   sagsnr <- getsagsnr(nfacts)
-  #year <- resy[2,2]
+  if (sagsnr %in% listofsagsnr) {
+    print(c("DUPLICATE ",sagsnr))
+    next
+  }
+  listofsagsnr[[i]] <- sagsnr
   year <- getyear(nfacts2)
-  #price <- res[1,2] 
   price <- getprice(npris)
-  #sqmprice <- res[7,2]
   sqmprice <- getsqm(nname)
-  #desc <- desc[1]
   desc <- getdesc(desc)
-  #area <- res[22,2]
   area <- getarea(nfacts)
   tmpv <- c(desc,price,sqmprice,area,sagsnr,year)
   names(tmpv) <- edccolnames
   if (sagsnr != "NA") {
-  edcdf <- rbind(edcdf,tmpv)
+    edcdf <- rbind(edcdf,tmpv)
   } else {
-  print("NO SAGSNR .. skipping line")
+    print("NO SAGSNR .. skipping line")
   }
+  print("DONE OK")}, error = function(e) { skip_to_next <<- TRUE}
+)
+ if (skip_to_next) { next }
 }
-
-con$remove(query="{}")
-con$insert(edcdf)
+ 
+doMongo <- function(df) {
+  con$remove(query="{}")
+  con$insert(edcdf)
+}
 
 getdesc = function(x){
   res <- tryCatch(res <- x[1], error = function(e) { return(NA)} )
